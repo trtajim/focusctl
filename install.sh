@@ -43,4 +43,4 @@ echo
 echo "✓ focusctl installed successfully"
 echo
 echo "Run:"
-echo "  sudo focusctl help"
+echo "focusctl help"
