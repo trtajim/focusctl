@@ -1,329 +1,551 @@
-#!/usr/bin/env bash
+# FocusCTL
 
-set -euo pipefail
+<p align="center">
+  <b>Say goodbye to distractions.</b>
+</p>
 
-DEFAULT_URL="https://example.com"
-PROG="focusctl"
-STATE_DIR="/etc/focusctl/users"
-ORIGINAL_ARGS=("$@")
+FocusCTL creates a dedicated Linux focus user that can access only one allowed website.
 
-# ---------- colors ----------
-if [ -t 1 ]; then
-    C_RED=$'\033[31m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'
-    C_BOLD=$'\033[1m'; C_RESET=$'\033[0m'
-else
-    C_RED=""; C_GREEN=""; C_YELLOW=""; C_BOLD=""; C_RESET=""
-fi
+It is designed for students, online classes, schools, libraries, and anyone who needs a distraction-free computer environment.
 
-ok()   { echo "${C_GREEN}✓${C_RESET} $*"; }
-warn() { echo "${C_YELLOW}!${C_RESET} $*"; }
-err()  { echo "${C_RED}✗ Error:${C_RESET} $*" >&2; }
-die()  { err "$*"; exit 1; }
+---
 
-# ---------- usage ----------
-usage() {
-cat <<EOF
-${C_BOLD}FocusCTL${C_RESET} - Say goodbye to distractions
+# The Problem
 
-${C_BOLD}Usage:${C_RESET}
-  $PROG createuser <username> <password> [--url <url>]
-  $PROG seturl     <username> <url>
-  $PROG deleteuser <username> [-y|--yes]
-  $PROG list
-  $PROG status     <username>
-  $PROG help
+The internet is extremely useful for learning, but it is also full of distractions.
 
-${C_BOLD}Options:${C_RESET}
-  -h, --help       Show this help (or per-command help)
-  -y, --yes        Skip confirmation prompt (deleteuser)
-      --url <url>  Set initial URL for a new user (createuser)
-  -v, --version    Show version
-EOF
-}
+A student starts an online class:
 
-usage_createuser() {
-cat <<EOF
-Usage: $PROG createuser <username> <password> [--url <url>]
+- Opens Google Meet
+- Watches a lecture
+- Uses an educational website
 
-Creates a kiosk-mode Linux user locked to a single allowed URL
-(Openbox + Chromium). Defaults to $DEFAULT_URL if --url not given.
-EOF
-}
+Then:
 
-usage_seturl() {
-cat <<EOF
-Usage: $PROG seturl <username> <url>
+- Social media gets opened
+- Random browsing starts
+- Notifications interrupt
+- Time gets wasted
 
-Changes the allowed/whitelisted URL for an existing kiosk user.
-EOF
-}
+The problem is not the internet itself.
 
-usage_deleteuser() {
-cat <<EOF
-Usage: $PROG deleteuser <username> [-y|--yes]
+The problem is that everything is available at the same time.
 
-Deletes a kiosk user and their home directory.
-EOF
-}
+---
 
-version() {
-    echo "$PROG 0.2.0"
-}
+# The Solution
 
-auto_elevate() {
-    if [ "$EUID" -ne 0 ]; then
-        exec sudo -p "[sudo] password for %p to run $PROG: " "$0" "${ORIGINAL_ARGS[@]}"
-    fi
-}
+FocusCTL creates a separate Linux user only for focused work.
 
-check_dependencies() {
-    local missing=0
-    if ! command -v openbox >/dev/null 2>&1; then
-        err "Openbox is not installed."
-        missing=1
-    fi
-    if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
-        err "Chromium is not installed."
-        missing=1
-    fi
-    if [ "$missing" -eq 1 ]; then
-        echo
-        echo "FocusCTL requires:"
-        echo "  • Openbox"
-        echo "  • Chromium"
-        exit 1
-    fi
-}
+Example:
 
-get_chromium() {
-    if command -v chromium >/dev/null 2>&1; then
-        echo "chromium"
-    else
-        echo "chromium-browser"
-    fi
-}
+```
+Normal User
+│
+├── Full internet access
+├── Social media
+├── Games
+├── Everything
 
-valid_username() {
-    [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
-}
 
-valid_url() {
-    [[ "$1" =~ ^https?:// ]]
-}
+Focus User
+│
+├── Openbox session
+├── Chromium kiosk mode
+└── Only one allowed website
+```
 
-# ---------- config writers ----------
-write_chromium_policy() {
-    local URL="$1"
-    mkdir -p /etc/chromium/policies/managed
-    cat > /etc/chromium/policies/managed/focusctl.json <<EOF
-{
-  "URLBlocklist": [ "*" ],
-  "URLAllowlist": [ "$URL" ],
-  "DeveloperToolsAvailability": 2,
-  "IncognitoModeAvailability": 1,
-  "BrowserGuestModeEnabled": false,
-  "PasswordManagerEnabled": false,
-  "HomepageLocation": "$URL",
-  "HomepageIsNewTabPage": false,
-  "RestoreOnStartup": 4,
-  "RestoreOnStartupURLs": [ "$URL" ]
-}
-EOF
-}
+Workflow:
 
-write_openbox_config() {
-    local USERNAME="$1"
-    local CONFIG_DIR="/home/$USERNAME/.config/openbox"
-    mkdir -p "$CONFIG_DIR"
-    cat > "$CONFIG_DIR/rc.xml" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<openbox_config>
-<keyboard>
-<keybind key="C-W">
-    <action name="Execute">
-        <command>openbox --exit</command>
-    </action>
-</keybind>
-</keyboard>
-</openbox_config>
-EOF
-    chown "$USERNAME:$USERNAME" "$CONFIG_DIR/rc.xml"
-}
+1. Use your normal account daily.
+2. Create a focus account with FocusCTL.
+3. Login to the focus account before class.
+4. The browser opens automatically.
+5. Only your class website works.
 
-write_autostart() {
-    local USERNAME="$1"
-    local URL="$2"
-    local CONFIG_DIR="/home/$USERNAME/.config/openbox"
-    local CHROMIUM
-    CHROMIUM=$(get_chromium)
+No distractions.
 
-    mkdir -p "$CONFIG_DIR"
-    cat > "$CONFIG_DIR/autostart" <<EOF
-#!/bin/sh
+---
 
-$CHROMIUM \\
-    --kiosk \\
-    --app="$URL" \\
-    --no-first-run \\
-    --no-default-browser-check \\
-    --disable-infobars \\
-    --disable-session-crashed-bubble
+# Features
 
-openbox --exit
-EOF
-    chmod +x "$CONFIG_DIR/autostart"
-    chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.config"
-}
+- Create dedicated focus users
+- Chromium kiosk mode
+- Website allowlist
+- Automatic browser startup
+- Fullscreen learning environment
+- Lightweight Openbox desktop
+- Disable developer tools
+- Disable incognito mode
+- Disable browser guest mode
+- Disable password saving
+- Easy command-line management
 
-save_state() {
-    local USERNAME="$1" URL="$2"
-    mkdir -p "$STATE_DIR"
-    echo "$URL" > "$STATE_DIR/$USERNAME"
-}
+---
 
-read_state() {
-    local USERNAME="$1"
-    [ -f "$STATE_DIR/$USERNAME" ] && cat "$STATE_DIR/$USERNAME" || echo "(unknown)"
-}
+# Supported Systems
 
-# ---------- commands ----------
-create_user() {
-    local USERNAME="$1" PASSWORD="$2" URL="${3:-$DEFAULT_URL}"
+FocusCTL works on Linux distributions with:
 
-    valid_username "$USERNAME" || die "invalid username '$USERNAME'."
-    valid_url "$URL" || die "invalid URL '$URL' (must start with http:// or https://)."
+- Openbox
+- Chromium
+- A graphical login manager
 
-    if id "$USERNAME" >/dev/null 2>&1; then
-        die "user '$USERNAME' already exists."
-    fi
+Supported package managers:
 
-    useradd -m -s /bin/bash "$USERNAME"
-    echo "$USERNAME:$PASSWORD" | chpasswd
+| Distribution | Package Manager |
+|---|---|
+| Debian | apt |
+| Ubuntu | apt |
+| Linux Mint | apt |
+| Fedora | dnf |
+| Arch Linux | pacman |
 
-    write_chromium_policy "$URL"
-    write_openbox_config "$USERNAME"
-    write_autostart "$USERNAME" "$URL"
-    save_state "$USERNAME" "$URL"
+FocusCTL is mainly tested on Debian-based systems.
 
-    echo
-    ok "user '$USERNAME' created"
-    ok "password configured"
-    ok "openbox configured"
-    ok "chromium kiosk configured"
-    ok "allowed URL: $URL"
-}
+---
 
-set_url() {
-    local USERNAME="$1" URL="$2"
+# Installation
 
-    valid_url "$URL" || die "invalid URL '$URL' (must start with http:// or https://)."
-    id "$USERNAME" >/dev/null 2>&1 || die "user '$USERNAME' does not exist."
+## 1. Install Git
 
-    write_chromium_policy "$URL"
-    write_autostart "$USERNAME" "$URL"
-    save_state "$USERNAME" "$URL"
+Debian / Ubuntu / Mint:
 
-    ok "URL changed for '$USERNAME': $URL"
-}
+```bash
+sudo apt update
+sudo apt install git -y
+```
 
-delete_user() {
-    local USERNAME="$1" SKIP_CONFIRM="$2"
+---
 
-    id "$USERNAME" >/dev/null 2>&1 || die "user '$USERNAME' does not exist."
+## 2. Clone FocusCTL
 
-    if [ "$SKIP_CONFIRM" != "yes" ]; then
-        read -r -p "Delete user '$USERNAME' and its home directory? [y/N] " reply
-        case "$reply" in
-            [yY][eE][sS]|[yY]) ;;
-            *) warn "aborted."; exit 0 ;;
-        esac
-    fi
+```bash
+git clone https://github.com/trtajim/focusctl
+```
 
-    userdel -r "$USERNAME" 2>/dev/null || true
-    rm -f "$STATE_DIR/$USERNAME"
+Example:
 
-    ok "user '$USERNAME' deleted"
-}
+```
+Cloning into 'focusctl'...
+remote: Enumerating objects: 12, done.
+Receiving objects: 100%
+```
 
-list_users() {
-    if [ ! -d "$STATE_DIR" ] || [ -z "$(ls -A "$STATE_DIR" 2>/dev/null)" ]; then
-        warn "no focusctl users found."
-        return
-    fi
-    printf "%-20s %s\n" "USERNAME" "URL"
-    for f in "$STATE_DIR"/*; do
-        printf "%-20s %s\n" "$(basename "$f")" "$(cat "$f")"
-    done
-}
+---
 
-status_user() {
-    local USERNAME="$1"
-    id "$USERNAME" >/dev/null 2>&1 || die "user '$USERNAME' does not exist."
-    echo "User:  $USERNAME"
-    echo "URL:   $(read_state "$USERNAME")"
-}
+## 3. Enter the directory
 
-# ---------- arg parsing ----------
-[ $# -eq 0 ] && { usage; exit 1; }
+```bash
+cd focusctl
+```
 
-case "$1" in
-    -h|--help|help) usage; exit 0 ;;
-    -v|--version)   version; exit 0 ;;
-esac
+You should see:
 
-CMD="$1"; shift
+```
+focusctl
+install.sh
+uninstall.sh
+README.md
+```
 
-case "$CMD" in
-createuser)
-    URL="$DEFAULT_URL"
-    ARGS=()
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            -h|--help) usage_createuser; exit 0 ;;
-            --url) URL="$2"; shift 2 ;;
-            *) ARGS+=("$1"); shift ;;
-        esac
-    done
-    [ "${#ARGS[@]}" -eq 2 ] || { usage_createuser; exit 1; }
-    auto_elevate
-    check_dependencies
-    create_user "${ARGS[0]}" "${ARGS[1]}" "$URL"
-    ;;
+---
 
-seturl)
-    [ "$1" = "-h" ] || [ "$1" = "--help" ] && { usage_seturl; exit 0; } || true
-    [ $# -eq 2 ] || { usage_seturl; exit 1; }
-    auto_elevate
-    set_url "$1" "$2"
-    ;;
+## 4. Make installer executable
 
-deleteuser)
-    SKIP="no"
-    ARGS=()
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            -h|--help) usage_deleteuser; exit 0 ;;
-            -y|--yes) SKIP="yes"; shift ;;
-            *) ARGS+=("$1"); shift ;;
-        esac
-    done
-    [ "${#ARGS[@]}" -eq 1 ] || { usage_deleteuser; exit 1; }
-    auto_elevate
-    delete_user "${ARGS[0]}" "$SKIP"
-    ;;
+Run:
 
-list)
-    list_users
-    ;;
+```bash
+chmod +x install.sh
+```
 
-status)
-    [ $# -eq 1 ] || { echo "Usage: $PROG status <username>"; exit 1; }
-    status_user "$1"
-    ;;
+If you skip this step, you may get:
 
-*)
-    err "unknown command '$CMD'"
-    usage
-    exit 1
-    ;;
-esac
+```
+sudo: ./install.sh: command not found
+```
+
+---
+
+## 5. Install FocusCTL
+
+Run:
+
+```bash
+sudo ./install.sh
+```
+
+The installer automatically:
+
+- Installs Openbox
+- Installs Chromium
+- Installs FocusCTL globally
+- Creates required directories
+
+After successful installation:
+
+```
+✓ focusctl installed successfully
+```
+
+Verify:
+
+```bash
+focusctl --version
+```
+
+---
+
+# Creating a Focus User
+
+Basic syntax:
+
+```bash
+focusctl createuser <username> <password> --url <website>
+```
+
+Example:
+
+```bash
+focusctl createuser classuser password \
+--url https://meet.google.com
+```
+
+This creates:
+
+```
+Username:
+classuser
+
+Password:
+password
+
+Allowed website:
+https://meet.google.com
+```
+
+---
+
+# Example Use Cases
+
+## Online Class
+
+Google Meet:
+
+```bash
+focusctl createuser student password \
+--url https://meet.google.com
+```
+
+---
+
+## Zoom Class
+
+```bash
+focusctl createuser student password \
+--url https://zoom.us
+```
+
+---
+
+## Educational Website
+
+```bash
+focusctl createuser student password \
+--url https://example.com
+```
+
+---
+
+# Logging Into Focus Mode
+
+After creating the user:
+
+## Step 1: Logout
+
+Logout from your current Linux account.
+
+---
+
+## Step 2: Select Openbox Session
+
+At the login screen:
+
+Before entering your username and password:
+
+Find the session option.
+
+Select:
+
+```
+Openbox
+```
+
+This is required because FocusCTL uses Openbox as the lightweight kiosk desktop.
+
+---
+
+## Step 3: Login
+
+Example:
+
+```
+Username:
+classuser
+
+Password:
+password
+```
+
+After login:
+
+1. Openbox starts.
+2. Chromium launches automatically.
+3. Your website opens.
+4. Other websites are blocked.
+
+---
+
+# Leaving Focus Mode
+
+Simply close Chromium with Ctrl + w 
+
+The Openbox session will automatically exit.
+
+You will return to the login screen.
+
+---
+
+# Commands
+
+## Help
+
+```bash
+focusctl help
+```
+
+---
+
+## Version
+
+```bash
+focusctl --version
+```
+
+---
+
+# Change Allowed Website
+
+Change the website for an existing focus user:
+
+```bash
+focusctl seturl <username> <url>
+```
+
+Example:
+
+```bash
+focusctl seturl classuser https://zoom.us
+```
+
+---
+
+# List Focus Users
+
+```bash
+focusctl list
+```
+
+Example:
+
+```
+USERNAME             URL
+
+classuser            https://meet.google.com
+```
+
+---
+
+# Check User Status
+
+```bash
+focusctl status <username>
+```
+
+Example:
+
+```bash
+focusctl status classuser
+```
+
+Output:
+
+```
+User: classuser
+URL: https://meet.google.com
+```
+
+---
+
+# Delete Focus User
+
+Delete a focus user:
+
+```bash
+focusctl deleteuser <username>
+```
+
+Example:
+
+```bash
+focusctl deleteuser classuser
+```
+
+The user's home directory is removed.
+
+---
+
+Skip confirmation:
+
+```bash
+focusctl deleteuser classuser --yes
+```
+
+---
+
+# How FocusCTL Works
+
+Internally:
+
+```
+Linux System
+
+             Normal User
+                 |
+                 |
+        Full computer access
+
+
+             Focus User
+                 |
+                 |
+              Openbox
+                 |
+                 |
+        Chromium kiosk mode
+                 |
+                 |
+          Allowed website only
+```
+
+---
+
+# Files Created
+
+## FocusCTL data
+
+```
+/etc/focusctl/users/
+```
+
+Stores allowed URLs.
+
+---
+
+## Chromium policy
+
+```
+/etc/chromium/policies/managed/focusctl.json
+```
+
+Controls browser restrictions.
+
+---
+
+## Openbox configuration
+
+```
+/home/<username>/.config/openbox/
+```
+
+Contains:
+
+- Startup configuration
+- Keyboard shortcuts
+- Chromium launcher
+
+---
+
+# Security Notes
+
+FocusCTL is a productivity tool, not a complete security sandbox.
+
+It prevents normal distractions but does not protect against an administrator.
+
+A user with root access can bypass restrictions.
+
+For schools and public computers, also consider:
+
+- BIOS password
+- Disable external boot devices
+- Separate admin account
+- Disk encryption
+
+---
+
+# Troubleshooting
+
+## Chromium not found
+
+Install manually:
+
+Debian/Ubuntu:
+
+```bash
+sudo apt install chromium
+```
+
+---
+
+## Openbox not found
+
+Install:
+
+```bash
+sudo apt install openbox
+```
+
+---
+
+## Browser does not start
+
+Make sure:
+
+1. You selected:
+
+```
+Openbox
+```
+
+at login.
+
+2. Chromium is installed:
+
+```bash
+chromium --version
+```
+
+---
+
+# Uninstall
+
+From the FocusCTL directory:
+
+```bash
+sudo ./uninstall.sh
+```
+
+# Author
+
+Tajim
+
