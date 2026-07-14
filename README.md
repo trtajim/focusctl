@@ -4,120 +4,121 @@
   <b>Say goodbye to distractions.</b>
 </p>
 
-FocusCTL creates a dedicated Linux kiosk user that can only access a single allowed website using Chromium kiosk mode.
+FocusCTL creates a dedicated Linux focus user that can access only one allowed website.
 
-Designed for students, online classes, schools, and focused work environments.
+It is designed for students, online classes, schools, libraries, and anyone who needs a distraction-free computer environment.
 
 ---
 
 # The Problem
 
-While attending online classes or studying online, it is very easy to get distracted.
+The internet is extremely useful for learning, but it is also full of distractions.
 
-You open your browser for a class:
+A student starts an online class:
 
-- Join Google Meet / Zoom / online platform
-- Check one notification
-- Open YouTube
-- Browse social media
-- Start scrolling
+- Opens Google Meet
+- Watches a lecture
+- Uses an educational website
 
-Suddenly, hours are gone and your focus is lost.
+Then:
 
-The internet is powerful, but without control it can become a distraction machine.
+- Social media gets opened
+- Random browsing starts
+- Notifications interrupt
+- Time gets wasted
+
+The problem is not the internet itself.
+
+The problem is that everything is available at the same time.
 
 ---
 
 # The Solution
 
-FocusCTL creates a separate **focus user** on your Linux system.
+FocusCTL creates a separate Linux user only for focused work.
 
 Example:
 
 ```
 Normal User
-    |
-    |-- Full internet access
-    |-- Social media
-    |-- Everything
+│
+├── Full internet access
+├── Social media
+├── Games
+├── Everything
 
 
-Class User (created by FocusCTL)
-    |
-    |-- Chromium kiosk mode
-    |-- Only one allowed website
-    |-- No distractions
+Focus User
+│
+├── Openbox session
+├── Chromium kiosk mode
+└── Only one allowed website
 ```
 
-You simply:
+Workflow:
 
-1. Create a class user.
-2. Login with that user before your online class.
-3. The browser opens automatically.
-4. Only your class website works.
+1. Use your normal account daily.
+2. Create a focus account with FocusCTL.
+3. Login to the focus account before class.
+4. The browser opens automatically.
+5. Only your class website works.
 
-Example:
-
-```
-focusctl createuser classuser password --url https://meet.google.com
-```
-
-Now login as:
-
-```
-classuser
-```
-
-Your computer becomes a distraction-free classroom.
+No distractions.
 
 ---
 
 # Features
 
-- Creates isolated Linux users
+- Create dedicated focus users
 - Chromium kiosk mode
-- Website allowlist blocking
+- Website allowlist
 - Automatic browser startup
-- No developer tools
-- No incognito mode
-- No password saving
-- Openbox lightweight environment
-- Easy user management
+- Fullscreen learning environment
+- Lightweight Openbox desktop
+- Disable developer tools
+- Disable incognito mode
+- Disable browser guest mode
+- Disable password saving
+- Easy command-line management
 
 ---
 
-# Requirements
+# Supported Systems
 
-Supported:
+FocusCTL works on Linux distributions with:
 
-- Debian
-- Ubuntu
-- Linux Mint
-- Other Debian-based distributions
+- Openbox
+- Chromium
+- A graphical login manager
 
-Requirements:
+Supported package managers:
 
-```
-Openbox
-Chromium
-sudo access
-```
+| Distribution | Package Manager |
+|---|---|
+| Debian | apt |
+| Ubuntu | apt |
+| Linux Mint | apt |
+| Fedora | dnf |
+| Arch Linux | pacman |
+
+FocusCTL is mainly tested on Debian-based systems.
 
 ---
 
 # Installation
 
-## 1. Install dependencies
+## 1. Install Git
+
+Debian / Ubuntu / Mint:
 
 ```bash
 sudo apt update
-
-sudo apt install openbox chromium git -y
+sudo apt install git -y
 ```
 
 ---
 
-## 2. Download FocusCTL
+## 2. Clone FocusCTL
 
 ```bash
 git clone https://github.com/trtajim/focusctl
@@ -128,53 +129,66 @@ Example:
 ```
 Cloning into 'focusctl'...
 remote: Enumerating objects: 12, done.
-remote: Counting objects: 100% (12/12), done.
 Receiving objects: 100%
 ```
 
 ---
 
-## 3. Enter directory
+## 3. Enter the directory
 
 ```bash
 cd focusctl
+```
+
+You should see:
+
+```
+focusctl
+install.sh
+uninstall.sh
+README.md
 ```
 
 ---
 
 ## 4. Make installer executable
 
-If you see:
-
-```
-sudo: ./install.sh: command not found
-```
-
-The file is not executable.
-
-Fix:
+Run:
 
 ```bash
 chmod +x install.sh
 ```
 
+If you skip this step, you may get:
+
+```
+sudo: ./install.sh: command not found
+```
+
 ---
 
-## 5. Install
+## 5. Install FocusCTL
+
+Run:
 
 ```bash
 sudo ./install.sh
 ```
 
-After installation:
+The installer automatically:
+
+- Installs Openbox
+- Installs Chromium
+- Installs FocusCTL globally
+- Creates required directories
+
+After successful installation:
 
 ```
-focusctl
+✓ focusctl installed successfully
 ```
 
-will be available globally.
-
-Check:
+Verify:
 
 ```bash
 focusctl --version
@@ -184,73 +198,148 @@ focusctl --version
 
 # Creating a Focus User
 
-## Basic
+Basic syntax:
 
 ```bash
-focusctl createuser username password
+focusctl createuser <username> <password> --url <website>
 ```
 
 Example:
-
-```bash
-focusctl createuser classuser mypassword
-```
-
-Default URL:
-
-```
-https://example.com
-```
-
----
-
-## Create Online Class User
-
-Example Google Meet:
 
 ```bash
 focusctl createuser classuser password \
 --url https://meet.google.com
 ```
 
-Example YouTube educational channel:
+This creates:
 
-```bash
-focusctl createuser study password \
---url https://youtube.com/@education
+```
+Username:
+classuser
+
+Password:
+password
+
+Allowed website:
+https://meet.google.com
 ```
 
 ---
 
-# Using Focus User
+# Example Use Cases
 
-Logout from your current account.
+## Online Class
 
-Login with:
+Google Meet:
+
+```bash
+focusctl createuser student password \
+--url https://meet.google.com
+```
+
+---
+
+## Zoom Class
+
+```bash
+focusctl createuser student password \
+--url https://zoom.us
+```
+
+---
+
+## Educational Website
+
+```bash
+focusctl createuser student password \
+--url https://example.com
+```
+
+---
+
+# Logging Into Focus Mode
+
+After creating the user:
+
+## Step 1: Logout
+
+Logout from your current Linux account.
+
+---
+
+## Step 2: Select Openbox Session
+
+At the login screen:
+
+Before entering your username and password:
+
+Find the session option.
+
+Select:
 
 ```
-username:
+Openbox
+```
+
+This is required because FocusCTL uses Openbox as the lightweight kiosk desktop.
+
+---
+
+## Step 3: Login
+
+Example:
+
+```
+Username:
 classuser
 
-password:
+Password:
 password
 ```
 
 After login:
 
-- Openbox starts
-- Chromium launches automatically
-- Website opens fullscreen
-- Other websites are blocked
+1. Openbox starts.
+2. Chromium launches automatically.
+3. Your website opens.
+4. Other websites are blocked.
 
 ---
 
-# Managing Users
+# Leaving Focus Mode
 
-## Change Allowed Website
+Simply close Chromium with Ctrl + w 
+
+The Openbox session will automatically exit.
+
+You will return to the login screen.
+
+---
+
+# Commands
+
+## Help
 
 ```bash
-focusctl seturl username URL
+focusctl help
+```
+
+---
+
+## Version
+
+```bash
+focusctl --version
+```
+
+---
+
+# Change Allowed Website
+
+Change the website for an existing focus user:
+
+```bash
+focusctl seturl <username> <url>
 ```
 
 Example:
@@ -261,23 +350,29 @@ focusctl seturl classuser https://zoom.us
 
 ---
 
-## List Focus Users
+# List Focus Users
 
 ```bash
 focusctl list
 ```
 
-Output:
+Example:
 
 ```
 USERNAME             URL
+
 classuser            https://meet.google.com
-study                https://youtube.com
 ```
 
 ---
 
-## Check User Status
+# Check User Status
+
+```bash
+focusctl status <username>
+```
+
+Example:
 
 ```bash
 focusctl status classuser
@@ -287,16 +382,28 @@ Output:
 
 ```
 User: classuser
-URL:  https://meet.google.com
+URL: https://meet.google.com
 ```
 
 ---
 
-## Delete Focus User
+# Delete Focus User
+
+Delete a focus user:
+
+```bash
+focusctl deleteuser <username>
+```
+
+Example:
 
 ```bash
 focusctl deleteuser classuser
 ```
+
+The user's home directory is removed.
+
+---
 
 Skip confirmation:
 
@@ -306,72 +413,93 @@ focusctl deleteuser classuser --yes
 
 ---
 
-# How It Works
+# How FocusCTL Works
 
-FocusCTL creates:
-
-```
-Linux User
-    |
-    |
-    +-- Openbox session
-            |
-            +-- Chromium kiosk mode
-                    |
-                    +-- Allowed website only
-```
-
-Chromium policy:
+Internally:
 
 ```
-Block:
-    *
+Linux System
 
-Allow:
-    configured URL
+             Normal User
+                 |
+                 |
+        Full computer access
+
+
+             Focus User
+                 |
+                 |
+              Openbox
+                 |
+                 |
+        Chromium kiosk mode
+                 |
+                 |
+          Allowed website only
 ```
-
-The user does not need:
-
-- sudo permission
-- system configuration access
-- browser settings
 
 ---
 
-# Uninstall
+# Files Created
 
-From the project directory:
+## FocusCTL data
 
-```bash
-sudo ./uninstall.sh
 ```
+/etc/focusctl/users/
+```
+
+Stores allowed URLs.
+
+---
+
+## Chromium policy
+
+```
+/etc/chromium/policies/managed/focusctl.json
+```
+
+Controls browser restrictions.
+
+---
+
+## Openbox configuration
+
+```
+/home/<username>/.config/openbox/
+```
+
+Contains:
+
+- Startup configuration
+- Keyboard shortcuts
+- Chromium launcher
+
+---
+
+# Security Notes
+
+FocusCTL is a productivity tool, not a complete security sandbox.
+
+It prevents normal distractions but does not protect against an administrator.
+
+A user with root access can bypass restrictions.
+
+For schools and public computers, also consider:
+
+- BIOS password
+- Disable external boot devices
+- Separate admin account
+- Disk encryption
 
 ---
 
 # Troubleshooting
 
-## install.sh: command not found
-
-Example:
-
-```
-sudo ./install.sh
-sudo: ./install.sh: command not found
-```
-
-Solution:
-
-```bash
-chmod +x install.sh
-sudo ./install.sh
-```
-
----
-
 ## Chromium not found
 
-Install:
+Install manually:
+
+Debian/Ubuntu:
 
 ```bash
 sudo apt install chromium
@@ -389,46 +517,35 @@ sudo apt install openbox
 
 ---
 
-# Security Notes
+## Browser does not start
 
-FocusCTL is designed for focus and productivity.
+Make sure:
 
-It prevents normal distractions, but it is not a security sandbox.
+1. You selected:
 
-A user with physical access to the machine may still modify the system using advanced methods.
+```
+Openbox
+```
 
-For schools and public computers, combine FocusCTL with:
+at login.
 
-- BIOS password
-- disabled boot devices
-- encrypted disk
-- restricted administrator accounts
+2. Chromium is installed:
 
----
-
-# Roadmap
-
-Future ideas:
-
-- Multiple allowed URLs
-- Time scheduling
-- Automatic logout after class
-- Admin dashboard
-- Windows support
-- Better kiosk lockdown
+```bash
+chromium --version
+```
 
 ---
 
-# License
+# Uninstall
 
-MIT License
+From the FocusCTL directory:
 
----
+```bash
+sudo ./uninstall.sh
+```
 
 # Author
 
-Created by Tajim
+Tajim
 
-GitHub:
-
-https://github.com/trtajim/focusctl
